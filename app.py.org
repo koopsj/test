@@ -1,0 +1,108 @@
+from flask import Flask, jsonify, request, render_template, request, url_for, redirect
+from flask_sqlalchemy import SQLAlchemy, func
+
+import pandas as pd
+import ibm_db
+import ibm_db_sa
+
+
+
+database_username = 'db2inst1'
+database_password = 'password'
+database_hostname = 'localhost'
+database_port = '50000'
+database_name = 'testdb'
+
+# Construct the connection string
+connection_string = (
+    f"DATABASE={database_name};"
+    f"HOSTNAME={database_hostname};"
+    f"PORT={database_port};"
+    f"PROTOCOL=TCPIP;"
+    f"UID={database_username};"
+    f"PWD={database_password};"
+)
+
+# Establish the connection
+try:
+    conn = ibm_db.connect(connection_string, '', '')
+    print("Connection established successfully.")
+except Exception as e:
+    print(f"Error: {e}")
+
+
+
+# Sample SELECT query
+query = "SELECT * FROM syscat.tables LIMIT 10"
+
+# Execute the query
+stmt = ibm_db.exec_immediate(conn, query)
+
+# Fetch the results
+while ibm_db.fetch_row(stmt):
+    # Get the data for each row
+    col1_value = ibm_db.result(stmt, 0)
+    col2_value = ibm_db.result(stmt, 1)
+    # ... (repeat for other columns as needed)
+    print(col1_value, col2_value)
+
+
+
+
+
+
+
+
+
+app = Flask(__name__)
+
+# configure the SQLite database, relative to the app instance folder
+app.config["SQLALCHEMY_DATABASE_URI"] = "ibm_db_sa://db2inst1:password@localhost:50000/testdb"
+# initialize the app with the extension
+db = SQLAlchemy(app)
+# ...
+
+class Student(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    firstname = db.Column(db.String(100), nullable=False)
+    lastname = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(80), unique=True, nullable=False)
+    age = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime(timezone=True),
+                           server_default=func.now())
+    bio = db.Column(db.Text)
+
+
+@app.route('/')
+def index():
+    students = Student.query.all()
+    #return (index.to_dict())
+    #return (index)
+    print(students)
+
+
+
+
+incomes = [
+    { 'description': 'salary', 'amount': 5000 }
+]
+
+
+@app.route('/incomes')
+def get_incomes():
+    return jsonify(incomes)
+
+
+#@app.route('/incomes', methods=['POST'])
+#def add_income():
+#    incomes.append(request.get_json())
+#return '', 204
+
+
+@app.route('/data', methods=['GET'])
+def get_data():
+    cur = db.connection.cursor()
+    cur.execute('''SELECT * FROM syscat.tables''')
+    data = cur.fetchall()
+    cur.close()
+    return jsonify(data)
