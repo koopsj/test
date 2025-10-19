@@ -1,3 +1,4 @@
+#command to flask
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from faker import Faker
